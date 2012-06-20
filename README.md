@@ -6,10 +6,10 @@ The gamework library is used to control process flow for the LOVE 2d game engine
 ----------------------------------------------------------------------------------------------------
 # Functions
 
-**addSequence**(`task`, `subtask`, `halt`, `...`)         
+**addSequence**(`task, subtask, halt, ...`)         
 Queues a `subtask` to be added through sequence to the master `task`. If `halt` is true then the subtask is flagged as a halt task. This triggers the subtask:added(`...`) callback when the queued task is promoted to a subtask.
 
-**addSubtask**(`task`, `subtask`, `...`)     
+**addSubtask**(`task, subtask, ...`)     
 Adds a `subtask` to `task`. This calls subtask:added(...).     
 
 **attachedToRoot**(`task`)     
@@ -161,36 +161,39 @@ Gamework needs to store private values inside tasks in order to work. Writing to
 A task's master.     
 
 **_gw_delegate**    
-A task's delegate. Overloads the task and all of its other subtasks     
+A task's delegate. Overloads the task and all of its other subtasks    . 
+
+**_gw_index**    
+The index of the task in it's master's subtask list.    
 
 **_gw_order**					
-The order that the task is called in, in relation to other subtasks     
+The order that the task is called in, in relation to other subtasks.    
 
 **_gw_subtasks**				
 A task's subtasks. Their callbacks are called after their master's.     
 
 **_gw_subtasksDirty**			
-If true then the __subtasks table needs to be sorted     
+If true then the __subtasks table needs to be sorted.     
 
 **_gw_sequenceQueue**			
-A queue of tasks to become subtasks     
+A queue of tasks to become subtasks.     
 
 **_gw_sequenceLeft**			
-The leftmost value in the sequence queue     
+The leftmost value in the sequence queue.     
 
 **_gw_sequenceRight**			
-The rightmost value in the sequence queue     
+The rightmost value in the sequence queue.     
 
 **_gw_sequenceHaltActive**		
 The subtask task that is halting the sequence.     
 
 **_gw_sequenceHaltTasks**		
-Keeps track of what tasks will halt the sequence when active     
+Keeps track of what tasks will halt the sequence when active.     
 
 **_gw_sequenceParameters**		
 task:added() parameters for queued subtasks.     
 
 **_gw_taskType**				
-The type of task this is. Can be nil, "subtask", "delegate", or "queued"     
+The type of task this is. Can be nil, "subtask", "delegate", or "queued".    
 
 ----------------------------------------------------------------------------------------------------
