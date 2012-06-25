@@ -10,7 +10,7 @@ The gamework library is used to control process flow for the LOVE 2d game engine
 Queues a `subtask` to be added through sequence to the master `task`. If `halt` is true then the subtask is flagged as a halt task. This triggers the subtask:added(`...`) callback when the queued task is promoted to a subtask.
 
 **addSubtask**(`task, subtask, ...`)     
-Adds a `subtask` to `task`. This calls subtask:added(...).     
+Adds `subtask` to `task`. This calls subtask:added(...).     
 
 **attachedToRoot**(`task`)     
 Returns true if the `task` is attached to the root.     
@@ -56,6 +56,11 @@ Initalizes gamework. Call this only once. If you plan to define any love callbac
 
 **iterateSequence**(`task`)     
 Iterates over all of a `task's` queued tasks.     
+```lua     
+     for queuedTask in gamework.iterateSequence(task) do     
+       -- do something with the queued tasks 
+     end     
+```
 
 **iterateSubtasks**(`task`)     
 Iterates over all  of a `task's` subtasks     
@@ -85,9 +90,9 @@ Creates a queued task that pauses a `task's` sequence progression by a certain a
 
 ----------------------------------------------------------------------------------------------------
 ##Forwarded LOVE Callbacks     
-Called on all undelegated tasks attached to the root.     
+Called on all undelegated tasks that are attached to the root.     
 
-**draw**    					
+**draw**         				
 **focus**     
 **joystickpressed**     
 **joystickreleased**     
@@ -117,23 +122,8 @@ Called when a task has its delegate removed
 ----------------------------------------------------------------------------------------------------
 ##Glossary
 
-**Task**      
-A task is simply a table but used as a unit inside gamework. When attached to the root it will have certain callback functions automatically triggered.
-
-**Subtask**    
-A task that is a subordinant of another task, which is called its master. Subtasks have their callbacks triggered immediately after their master's.
-
-**Master**    
-A task is the master of another task if it owns it as a subtask. A subtask can only have one master.
-
-**Sequence**    
-A sequence is a series of queued tasks waiting to become subtasks. The subtasks are added to their master in the order that they were added to the sequence.
- 
-**Queued Task**    
-A subtask that is queued in a sequence
-
-**Halt Task**    
-A halt task is a subtask that stops a sequence from progressing further until it is removed from its master or gamework.contineuSequence() is called.
+**Attached to the root**     
+A task which has its master as the root or has its master attached to the root. In other words, if you follow the chain of masters you eventually reach the root.
 
 **Delegate**    
 A subtask that takes overloads its master and all of its other subtasks. Overloaded (delegated) tasks will not have love callbacks forwarded to them.
@@ -144,14 +134,29 @@ When delegates have delegates themselves it creates a "chain" of several delegat
 **Delegated Task**    
 A task that has its normal operations halted due to a delegate. 
 
-**Attached to the root**     
-A task which has its master as the root or has its master attached to the root. In other words, if you follow the chain of masters you eventually reach the root.
+**Halt Task**    
+A halt task is a subtask that stops a sequence from progressing further until it is removed from its master or gamework.contineuSequence() is called.
 
-**Root**    
-The entry point task for gamework. The root task will be called first. Other tasks must be added as subtasks to the root or subtasks of those subtasks, etc.
+**Sequence**    
+A sequence is a series of queued tasks waiting to become subtasks. The subtasks are added to their master in the order that they were added to the sequence.
+ 
+**Subtask**    
+A task that is a subordinant of another task, which is called its master. Subtasks have their callbacks triggered immediately after their master's.
+
+**Task**      
+A task is simply a table but used as a unit inside gamework. When attached to the root it will have certain callback functions automatically triggered.
+
+**Master**    
+A task is the master of another task if it owns it as a subtask. A subtask can only have one master.
 
 **Order**     
 Subtasks with lower orders have their callbacks triggered first. The default order is zero and can be set with gamework.setOrder(). This is useful if you want certain tasks to be updated or drawn before others.
+
+**Queued Task**    
+A subtask that is queued in a sequence
+
+**Root**    
+The entry point task for gamework. The root task will be called first. Other tasks must be added as subtasks to the root or subtasks of those subtasks, etc.
 
 ----------------------------------------------------------------------------------------------------
 ##Private Values   
@@ -173,7 +178,10 @@ The order that the task is called in, in relation to other subtasks.
 A task's subtasks. Their callbacks are called after their master's.     
 
 **_gw_subtasksDirty**			
-If true then the __subtasks table needs to be sorted.     
+If true then the __subtasks table needs to be sorted.    
+
+**_gw_subtasksSize**    			
+The number of subtasks the task contains 
 
 **_gw_sequenceQueue**			
 A queue of tasks to become subtasks.     
@@ -185,13 +193,16 @@ The leftmost value in the sequence queue.
 The rightmost value in the sequence queue.     
 
 **_gw_sequenceHaltActive**		
-The subtask task that is halting the sequence.     
+The subtask that is halting the sequence.     
 
 **_gw_sequenceHaltTasks**		
-Keeps track of what tasks will halt the sequence when active.     
+Keeps track of what queued tasks will halt the sequence when they become active subtasks.  
 
 **_gw_sequenceParameters**		
-task:added() parameters for queued subtasks.     
+Stores parameters from sequenceAdd() for queued subtasks. When a queued task becomes a subtask then the added() callback is triggered and these parameters are passed.     
+
+**_gw_sequenceSize**    			
+The number of queued tasks in sequence.
 
 **_gw_taskType**				
 The type of task this is. Can be nil, "subtask", "delegate", or "queued".    
