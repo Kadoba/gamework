@@ -6,8 +6,8 @@
 -- called subtasks. Those subtasks can have their own subtasks and so on. Using this tree-like 
 -- design it is easy to control the flow of command to create structures like scenes, sequences, 
 -- component entities, etc.
-
 ----------------------------------------------------------------------------------------------------
+
 -- Setup local variables
 local gamework = {}
 
@@ -25,8 +25,9 @@ callbacks.old = {}					-- We'll put the old callbacks in here.
 local initialized = false			-- If true then gamework is initialized.
 local renamedCallbacks = {}			-- Callback functions that are renamed.
 local inf = math.huge				-- Infinity
-local blank = {_gw_order = inf}		-- Used to fill subtask holes when removed
-local removed = {}					
+local currentCallback = none		-- The callback the gamework is currently on
+local removed = {_gw_order = inf}	-- Fake task used to replace removed subtasks	
+local filename = string.gsub(({...})[1], "[%.%\\]", "/") .. ".lua"	-- The name of this file
 
 ----------------------------------------------------------------------------------------------------
 -- HELPER FUNCTIONS
@@ -48,11 +49,13 @@ end
 local function checkSequence(task)
 
 	local subtask, params
+	
+	-- While there's not an active halt task and there are queued tasks left
 	while not task._gw_sequenceHaltActive and task._gw_sequenceLeft <= task._gw_sequenceRight do
 		subtask = task._gw_sequenceQueue[ task._gw_sequenceLeft ]
 		params = task._gw_sequenceParameters[ subtask ]
 		
-		
+		-- Adjust the queue dimensions
 		task._gw_sequenceQueue[ task._gw_sequenceLeft ] = nil
 		task._gw_sequenceLeft = task._gw_sequenceLeft + 1
 		task._gw_sequenceSize = task._gw_sequenceSize - 1
@@ -84,21 +87,6 @@ local function sortByOrder(task1, task2)
 
 	return (task1._gw_order or 0) < (task2._gw_order or 0)
 	
-end
-
-----------------------------------------------------------------------------------------------------
--- Sorts a task's subtasks is it needs it
-local function sortSubtasks(task)
-	-- If the subtasks' order has changed then sort it.
-	if task._gw_subtasksDirty then
-		table.sort(task._gw_subtasks, sortByOrder)
-		task._gw_subtaskDirty = nil
-		local highest = #task._gw_subtasks
-		while task._gw_subtasks[highest] and task._gw_subtasks[highest]._gw_order == inf do
-			task._gw_subtasks[highest] = nil
-			highest = highest-1
-		end
-	end
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -144,10 +132,17 @@ function gamework.addSubtask(task, subtask, ...)
 		task._gw_subtasksSize = 0
 	end
 	
+	-- Mark the subtasks to be sorted
 	task._gw_subtasksDirty = true
+	
+	-- The size inreased
 	task._gw_subtasksSize = task._gw_subtasksSize + 1
 	subtask._gw_index = #task._gw_subtasks+1
+	
+	-- Insert it into the subtask list
 	task._gw_subtasks[subtask._gw_index] = subtask
+	
+	-- Call the added callback if the subtask is attached to the root
 	if gamework.attachedToRoot(subtask) then gamework.callback(subtask, "added", "all", ...) end
 
 end
@@ -166,28 +161,29 @@ end
 
 ----------------------------------------------------------------------------------------------------
 -- Perform a callback on the specified task and all of its subtasks. 
---
+
 -- The spread parameter determines how the callback is disseminated.
--- It can be "normal", which prevents the spread to delegated tasks and subtasks. 
--- It can be "delegated" which spreads the callback to tasks and subtasks regardless if they are 
--- delegated or not (but not delegates themselves). Lastly, spread can be "all" which spreads the 
+-- Spread can be "normal", which spreads the callback to the task and all subtasks. If one of those
+-- tasks are delegated then the callback is instead sent to their delegate.
+-- Spread can be "delegated" which is exactly like "normal" except it ignores the first delegate
+-- that it finds and instead operates on its master. This is used for delegates to trigger 
+-- callbacks on their master.
+-- Lastly, spread can be "all" which spreads the callback to all undelegated and delegated tasks.
 -- callback to all subtasks and delegates regardless if they are delegated  or not.
+--
+-- The inner callback. This is the bulk of the callback.
+local function innerCallback(task, cb, spread, ...)
 
-function gamework.callback(task, cb, spread, ...)
-
-	-- If a callback is renamed then change it
-	if renamedCallbacks[cb] then cb = renamedCallbacks[cb] end
-	
-	-- Check if the spread is valid.
-	if spread ~= "normal" and spread ~= "all" and spread ~= "delegated" then
-		error("gamework.callback() - Unknown spread type " .. tostring(spread))
-	end
-	
 	-- If the task has a delegate then find the top one and forward the callback to it.
-	if task._gw_delegate and spread ~= "delegated" then
-		gamework.callback(gamework.topDelegate(task), cb, spread, ...)
-		if spread == "normal" then return end
+	if task._gw_delegate then
+		if spread ~= "delegated" then
+			innerCallback(gamework.topDelegate(task), cb, spread, ...)
+			if spread == "normal" then return end
+		else
+			spread = "normal"
+		end
 	end
+	
 	
 	-- Otherwise immediately trigger the callback.
 	if task[cb] then task[cb](task, ...) end
@@ -197,7 +193,7 @@ function gamework.callback(task, cb, spread, ...)
 	
 		-- Recursively call this function on every subtask.
 		for i = 1, #task._gw_subtasks do
-			if task._gw_subtasks[i] then gamework.callback(task._gw_subtasks[i], cb, spread, ...) end
+			if task._gw_subtasks[i] then innerCallback(task._gw_subtasks[i], cb, spread, ...) end
 		end
 		
 		-- If the subtasks' order has changed then sort it.
@@ -217,6 +213,32 @@ function gamework.callback(task, cb, spread, ...)
 	end
 	
 end
+
+-- Does some preparations and then starts the inner callback.
+function gamework.callback(task, cb, spread, ...)
+
+	-- If a callback is renamed then change it
+	if renamedCallbacks[cb] then cb = renamedCallbacks[cb] end
+	
+	-- Check if the spread is valid.
+	if spread ~= "normal" and spread ~= "all" and spread ~= "delegated" then
+		error("gamework.callback() - Unknown spread type " .. tostring(spread))
+	end
+	
+	-- Set the last callback
+	local lastCallback = currentCallback
+	currentCallback = cb
+	
+	-- Trigger the inner callback
+	innerCallback(task, cb, spread, ...)
+	
+	--Set the current callback to the previous one
+	currentCallback = lastCallback
+
+end
+
+
+
 
 ----------------------------------------------------------------------------------------------------
 -- Clear the task of all queued subtasks in sequence.
@@ -293,7 +315,7 @@ function gamework.getOrder(task)
 end
 
 ----------------------------------------------------------------------------------------------------
--- Get the root
+-- Get the root task
 function gamework.getRoot() 
 	return root 
 end
@@ -324,6 +346,72 @@ function gamework.initialize()
 		if callbacks.old[cb] then callbacks.old[cb](...) end
 			gamework.callback(root, cb, "normal", ...)
 		end
+	end
+	
+	-- Redefine debug.traceback() to make recursive callbacks in the error trackback prettier.
+	local oldtraceback = debug.traceback
+	function debug.traceback(...)
+	
+		-- Get the unaltered result
+		local result = oldtraceback(...)
+		result = string.gsub(result, filename .. ":%d+: in function 'traceback'\n%s+", "")
+		
+		-- Only change the result if gamework.callback() was in the trace stack.
+		local pattern = filename .. ":%d+: in function 'innerCallback'\n%s+"
+		if string.match(result, pattern) then
+		
+			-- Show the current callback
+			result = "The current gamework callback is '" .. currentCallback .. "'\n\n" .. result
+			
+			-- Record all of the subtstring ranges
+			local ranges = {}
+			local pos = 1
+			while string.find(result, pattern, pos) do
+				local start, stop = string.find(result, pattern, pos)
+				ranges[#ranges+1] = {start, stop, 1}
+				pos = stop
+			end
+			
+			-- Combine the ranges
+			for k, v in pairs(ranges) do
+				for k2, v2 in pairs(ranges) do
+					if v[2] == v2[1]-1 then
+						v[2] = v2[2]
+						v[3] = v[3] + v2[3]
+						ranges[k2] = nil
+					end
+				end
+			end
+			
+			-- Define a function to replace a substring range with another substring
+			function replaceString(str, start, stop, substring)
+				local newstr = string.sub(str, 1, start-1)
+				newstr = newstr .. substring
+				if stop < #str then
+					newstr = newstr .. string.sub(str, stop+1)
+				end
+				return newstr
+			end
+ 
+			-- Put the ranges in a new table and sort them based on their old position
+			local newRanges = {}
+			for k,v in pairs(ranges) do
+				v[4] = k  
+				newRanges[#newRanges+1] = v
+			end
+			table.sort(newRanges, function(a,b) return a[4] < b[4] end)
+ 
+			-- Starting from the last range going back, replace the combined subtrings with a 
+			-- smaller string.
+			for i = #newRanges,1,-1 do
+				local range = newRanges[i]
+				local newstring = filename .. ":??: in function 'innerCallback' with "
+				newstring = newstring .. "a recursive depth of " .. range[3] .. "\n"
+				result = replaceString(result, range[1], range[2], newstring)
+			end
+		end
+		
+		return result 
 	end
 	
 end
@@ -452,7 +540,9 @@ function gamework.remove(task, ...)
 	
 	-- type is a plain subtask
 	if task._gw_taskType == "subtask" then 
-		if gamework.attachedToRoot(master) then gamework.callback(task, "removed", "all", master, ...) end
+		if gamework.attachedToRoot(master) then 
+			gamework.callback(task, "removed", "all", master, ...) 
+		end
 		master._gw_subtasks[ task._gw_index ] = removed
 		master._gw_subtasksDirty = true
 		task._gw_index = nil
@@ -464,7 +554,9 @@ function gamework.remove(task, ...)
 		
 	-- type is a delegate
 	elseif task._gw_taskType == "delegate" then
-		if gamework.attachedToRoot(master) then gamework.callback(task, "removed", "all", master, ...) end
+		if gamework.attachedToRoot(master) then 
+			gamework.callback(task, "removed", "all", master, ...) 
+		end
 		master._gw_delegate = nil
 		
 	-- queued in a sequence
