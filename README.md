@@ -7,16 +7,16 @@ The gamework library is used to control process flow for the LOVE 2d game engine
 # Functions
 
 **addSequence**(`task, subtask, halt, ...`)         
-Queues a `subtask` to be added through sequence to the master `task`. If `halt` is true then the subtask is flagged as a halt task. This triggers the subtask:added(`...`) callback when the queued task is promoted to a subtask.
+Queues a `subtask` to be added to the master `task`. If `halt` is true then the subtask is flagged as a halt task. This triggers the subtask:added(`...`) callback when the queued task is promoted to a subtask.
 
 **addSubtask**(`task, subtask, ...`)     
-Adds `subtask` to `task`. This calls subtask:added(...).     
+Adds a `subtask` to the master `task`. This calls subtask:added(...).     
 
 **attachedToRoot**(`task`)     
 Returns true if the `task` is attached to the root.     
 
 **callback** (`task, cb, spread, ...`)     
-Chains a callback starting at `task` and travels to its subtasks. This checks to see if task[`cb`] exists and if it does it calls it as a function with the parameters (task, `...`). The callback will disseminate to its subtasks depending on the _spread_ type. Spread can be "normal" which means the callback will spread to all undelegated subtasks. It can be "delegated" which will spread the callback to all subtasks even if they are delegated (but not delegates themselves). Finally spread can be "all" which will spread the callback to all subtasks and delegates regarless if they are delegated or not.     
+Triggers a callback starting at `task` and forwards it to its subtasks. This checks to see if task[`cb`] exists and if it does it calls it as a function with the parameters (task, `...`). The callback will disseminate to its subtasks depending on the _spread_ type. Spread can be "normal" which means the callback will spread to all undelegated subtasks. It can be "delegated" which will spread the callback to all subtasks even if they are delegated (but not delegates themselves). Finally spread can be "all" which will spread the callback to all subtasks and delegates regarless if they are delegated or not.     
 
 **clearSequence** (`task`)     
 Clears any queued subtasks in a `task's` sequence.     
@@ -25,13 +25,13 @@ Clears any queued subtasks in a `task's` sequence.
 Clears a `task` of all of its subtasks.    
 
 **continueSequence** (`task`, `time`)     
-Continues a `task's` sequence regardless if the halt task is still active or not. If a value for `time` is set then the next queued task's update callback is immediately triggered with _time_ being used as delta time. If you have a halt task continue the sequence during it's update then it can be useful to pass on the remaining delta time for precise timing.
+Continues a `task's` sequence regardless if the halt task is still active or not. If the `time` parameter has a value then the next task in the sequence has its update callback immediately triggered with _time_ being used as delta time. If you have a halt task continue the sequence during it's update then it can be useful to pass on the remaining delta time for precise timing.
 
 **countSequence** (`task`)     
 Returns the number of queued subtasks in a `task's` sequence.     
 
 **countSubtasks** (`task`)     
-Returns the number of subtasks a `task` has.     
+Returns the number of subtasks that a `task` has.     
 
 **getDelegate** (`task`)     
 Returns the `task's` delegate.     
@@ -43,7 +43,7 @@ Returns the `task's` halt subtask, which is a subtask that prevents a sequence f
 Gets a `subtask's` master.     
 
 **getOrder**(`task`)     
-Gets the order of a `task`.     
+Gets the callback order of a `task`.     
 
 **getRoot**()     
 Returns the root task.     
@@ -77,7 +77,7 @@ Renames an `original` callback to a `new` one. This is useful if a callback name
 Sets a delegate `subtask` for a `task`. This triggers subtask:added(`...`).
 
 **setOrder**(`task, order`)     
-Sets a `task's` `order`     
+Sets a `task's` callback `order`     
 
 **topDelegate**(`task`)     
 If the `task` is part of a delegate chain then the top delegate is returned.     
@@ -85,7 +85,7 @@ If the `task` is part of a delegate chain then the top delegate is returned.
 **remove**(`subtask, ...`)     
 Remove a `subtask` from its master. This triggers subtask:removed(`...`).
 
-**waitSequence**(`task, time`)
+**waitSequence**(`task, time`)     
 Creates a queued task that pauses a `task's` sequence progression by a certain amount of `time`.
 
 ----------------------------------------------------------------------------------------------------
@@ -135,7 +135,7 @@ When delegates have delegates themselves it creates a "chain" of several delegat
 A task that has its normal operations halted due to a delegate. 
 
 **Halt Task**    
-A halt task is a subtask that stops a sequence from progressing further until it is removed from its master or gamework.contineuSequence() is called.
+A halt task is a subtask that stops a sequence from progressing further until it is removed from its master or gamework.continueSequence() is called.
 
 **Sequence**    
 A sequence is a series of queued tasks waiting to become subtasks. The subtasks are added to their master in the order that they were added to the sequence.
@@ -153,7 +153,7 @@ A task is the master of another task if it owns it as a subtask. A subtask can o
 Subtasks with lower orders have their callbacks triggered first. The default order is zero and can be set with gamework.setOrder(). This is useful if you want certain tasks to be updated or drawn before others.
 
 **Queued Task**    
-A subtask that is queued in a sequence
+An inactive subtask that is queued in a sequence
 
 **Root**    
 The entry point task for gamework. The root task will be called first. Other tasks must be added as subtasks to the root or subtasks of those subtasks, etc.
@@ -178,7 +178,7 @@ The order that the task is called in, in relation to other subtasks.
 A task's subtasks. Their callbacks are called after their master's.     
 
 **_gw_subtasksDirty**			
-If true then the __subtasks table needs to be sorted.    
+If true then the _gw_subtasks table needs to be sorted.    
 
 **_gw_subtasksSize**    			
 The number of subtasks the task contains 
