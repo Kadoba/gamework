@@ -1,7 +1,7 @@
 #gamework
 ========
 
-The gamework library is used to control process flow for the LOVE 2d game engine. It does this by forwarding LOVE callbacks to processes called tasks. Each task can have their own set of tasks called subtasks. Those subtasks can have their own subtasks and so on. Using this tree-like design it is easy to control the flow of command to create structures like scenes, sequences, component entities, etc.
+gamework is an **experimental** library is used to control process flow for the LOVE 2d game engine. It does this by forwarding LOVE callbacks to processes called tasks. Each task can have their own set of tasks called subtasks. Those subtasks can have their own subtasks and so on. Using this tree-like design it is easy to control the flow of command to create structures like scenes, sequences, component entities, etc.
 
 ----------------------------------------------------------------------------------------------------
 # Functions
